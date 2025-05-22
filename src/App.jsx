@@ -195,12 +195,12 @@ const FocusTimeManager = () => {
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-2">
-          <Brain className="text-blue-600" />
-          Focus Time Manager
+        <h1 className="text-3xl font-bold text-gray-900 mb-4 flex items-center gap-2 italic mb">
+          🌶️{"  "}Peperoncino
         </h1>
         <p className="text-gray-600">
-          Maximize your deep work sessions when you can actually focus
+          Maximize your deep work sessions when you can actually focus, use the
+          Peperoncino&reg; method!
         </p>
       </div>
 

@@ -6,7 +6,7 @@ import App from "./App.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <Toaster />
+    <Toaster position="bottom-right" reverseOrder={false} />
     <App />
   </StrictMode>
 );
