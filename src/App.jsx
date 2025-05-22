@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
   Clock,
   Brain,
@@ -13,269 +13,108 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-// Custom hook to manage localStorage state
-const useLocalStorage = (key, defaultValue) => {
-  const [value, setValue] = useState(() => {
-    try {
-      const saved = localStorage.getItem(key);
-      return saved ? JSON.parse(saved) : defaultValue;
-    } catch {
-      return defaultValue;
-    }
-  });
+// Import custom hooks
+import {
+  useLocalStorage,
+  useTodayCounter,
+  useTimer,
+  useFocusSessions,
+  useSessionHistory,
+  useCurrentSession,
+} from "./hooks";
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch (error) {
-      console.warn(`Failed to save ${key} to localStorage:`, error);
-    }
-  }, [key, value]);
-
-  return [value, setValue];
-};
-
-// Custom hook for today's completed sessions with date checking
-const useTodayCounter = () => {
-  const [completedToday, setCompletedToday] = useLocalStorage(
-    "completedToday",
-    0
-  );
-  const [lastDate, setLastDate] = useLocalStorage("completedDate", "");
-
-  // Function to update completed sessions for today
-  const updateCompletedToday = useCallback(
-    (updater) => {
-      const today = new Date().toDateString();
-
-      // Reset counter if it's a new day
-      if (lastDate !== today) {
-        setLastDate(today);
-        const newValue = typeof updater === "function" ? updater(0) : updater;
-        setCompletedToday(newValue);
-      } else {
-        setCompletedToday(updater);
-      }
-    },
-    [lastDate, setLastDate, setCompletedToday]
-  );
-
-  // Check if we need to reset on component mount
-  useEffect(() => {
-    const today = new Date().toDateString();
-    if (lastDate && lastDate !== today) {
-      setCompletedToday(0);
-      setLastDate(today);
-    }
-  }, [lastDate, setCompletedToday, setLastDate]);
-
-  return [completedToday, updateCompletedToday];
-};
+// Import utils
+import { formatTime, getPriorityColor } from "./utils";
 
 const FocusTimeManager = () => {
-  const [focusSessions, setFocusSessions] = useLocalStorage(
-    "focusSessions",
-    []
-  );
-  const [currentSession, setCurrentSession] = useLocalStorage(
-    "currentSession",
-    null
-  );
-  const [timeLeft, setTimeLeft] = useLocalStorage("timeLeft", 0);
   const [sessionLength, setSessionLength] = useLocalStorage(
     "sessionLength",
     90
   );
-  const [sessionHistory, setSessionHistory] = useLocalStorage(
-    "sessionHistory",
-    []
-  );
   const [completedToday, setCompletedToday] = useTodayCounter();
-
-  const [isRunning, setIsRunning] = useState(false);
   const [newTask, setNewTask] = useState("");
 
-  useEffect(() => {
-    let interval = null;
-    if (isRunning && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (timeLeft === 0 && currentSession) {
-      setIsRunning(false);
-      setCompletedToday((prev) => prev + 1);
-      setCurrentSession(null);
-      toast("Good Job!", { icon: "🎉👏" });
-    }
-    return () => clearInterval(interval);
-  }, [
-    isRunning,
-    timeLeft,
+  // Session history hook
+  const {
+    sessionHistory,
+    addSessionRecord,
+    clearHistory,
+    exportHistoryAsCSV,
+    getAverageSessionDuration,
+  } = useSessionHistory();
+
+  // Focus sessions hook
+  const {
+    focusSessions,
+    addTask,
+    toggleComplete,
+    removeTask,
+    setPriority,
+    markTaskCompleted,
+  } = useFocusSessions();
+
+  // Handle session completion
+  const handleSessionComplete = (session, timeWorked, plannedDuration) => {
+    markTaskCompleted(session.id);
+    addSessionRecord(session.task, plannedDuration, timeWorked);
+    setCompletedToday((prev) => prev + 1);
+  };
+
+  // Current session hook
+  const {
     currentSession,
-    setCompletedToday,
-    setCurrentSession,
-    setTimeLeft,
-  ]);
+    startSession: startCurrentSession,
+    completeSessionEarly,
+    stopSession,
+  } = useCurrentSession(handleSessionComplete);
 
-  const formatTime = (seconds, alwaysShowSeconds = false) => {
-    const hours = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-
-    if (hours > 0) {
-      if (alwaysShowSeconds) {
-        return `${hours}h ${mins}m ${secs}s`;
-      } else {
-        return `${hours}h ${mins}m`;
+  // Timer hook
+  const { timeLeft, isRunning, startTimer, pauseResume, stopTimer } = useTimer(
+    () => {
+      if (currentSession) {
+        handleSessionComplete(
+          currentSession,
+          sessionLength * 60,
+          sessionLength
+        );
+        stopSession();
       }
-    } else {
-      return `${mins}m ${secs}s`;
     }
-  };
+  );
 
+  // Combined start session function
   const startSession = (task) => {
-    setCurrentSession(task);
-    setTimeLeft(sessionLength * 60);
-    setIsRunning(true);
+    startCurrentSession(task);
+    startTimer(sessionLength * 60);
   };
 
-  const pauseResume = () => {
-    setIsRunning(!isRunning);
+  // Combined stop session function
+  const handleStopSession = () => {
+    stopTimer();
+    stopSession();
   };
 
-  const completeSessionEarly = () => {
-    if (currentSession) {
-      const timeWorked = sessionLength * 60 - timeLeft;
-
-      // Mark the task as completed in the queue
-      setFocusSessions((prev) =>
-        prev.map((session) =>
-          session.id === currentSession.id
-            ? { ...session, completed: true }
-            : session
-        )
-      );
-
-      // Record the session in history
-      const sessionRecord = {
-        id: Date.now(),
-        task: currentSession.task,
-        plannedDuration: sessionLength,
-        actualDuration: Math.ceil(timeWorked / 60), // Convert to minutes
-        completedAt: new Date().toISOString(),
-        date: new Date().toDateString(),
-      };
-
-      setSessionHistory((prev) => [sessionRecord, ...prev]);
-      setCompletedToday((prev) => prev + 1);
-
-      // Clear current session
-      setIsRunning(false);
-      setCurrentSession(null);
-      setTimeLeft(0);
-
-      toast("Task marked as complete!", { icon: "✅" });
-    }
+  // Handle early completion
+  const handleCompleteEarly = () => {
+    const timeWorked = sessionLength * 60 - timeLeft;
+    completeSessionEarly(timeWorked, sessionLength);
+    stopTimer();
   };
 
-  const stopSession = () => {
-    setIsRunning(false);
-    setCurrentSession(null);
-    setTimeLeft(0);
-  };
-
-  const addTask = () => {
-    if (newTask.trim()) {
-      setFocusSessions([
-        ...focusSessions,
-        {
-          id: Date.now(),
-          task: newTask.trim(),
-          completed: false,
-          priority: "medium",
-        },
-      ]);
+  // Add task handler
+  const handleAddTask = () => {
+    if (addTask(newTask)) {
       setNewTask("");
     }
   };
 
-  const toggleComplete = (id) => {
-    setFocusSessions(
-      focusSessions.map((session) =>
-        session.id === id
-          ? { ...session, completed: !session.completed }
-          : session
-      )
-    );
-  };
-
-  const removeTask = (id) => {
-    setFocusSessions(focusSessions.filter((session) => session.id !== id));
-  };
-
+  // Clear today's sessions
   const clearSessionsToday = () => {
     setCompletedToday(0);
-
     toast("Today's sessions cleared!", { icon: "💃" });
   };
 
-  const exportHistoryAsCSV = () => {
-    if (sessionHistory.length === 0) {
-      toast("No session history to export!", { icon: "🚫" });
-      return;
-    }
-
-    const csvHeader =
-      "Task,Planned Duration (min),Actual Duration (min),Date,Time\n";
-
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      csvHeader +
-      sessionHistory
-        .map((session) => {
-          return `${session.task},${session.plannedDuration},${
-            session.actualDuration
-          },${new Date(session.completedAt).toLocaleDateString()},${new Date(
-            session.completedAt
-          ).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}`;
-        })
-        .join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute(
-      "download",
-      `session_history-${new Date().toISOString()}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast("Session history exported as CSV!", { icon: "📥" });
-  };
-
-  const setPriority = (id, priority) => {
-    setFocusSessions(
-      focusSessions.map((session) =>
-        session.id === id ? { ...session, priority } : session
-      )
-    );
-  };
-
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case "high":
-        return "bg-red-100 border-red-300 text-red-800";
-      case "medium":
-        return "bg-yellow-100 border-yellow-300 text-yellow-800";
-      case "low":
-        return "bg-green-100 border-green-300 text-green-800";
-      default:
-        return "bg-gray-100 border-gray-300 text-gray-800";
-    }
-  };
+  const averageSessionDuration = getAverageSessionDuration();
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white">
@@ -300,7 +139,7 @@ const FocusTimeManager = () => {
               </span>
             </div>
             <button
-              onClick={() => clearSessionsToday()}
+              onClick={clearSessionsToday}
               title="Clear today's session count"
               className="text-sm text-blue-600 hover:text-blue-800 hover:scale-110 cursor-pointer opacity-0 group-hover:opacity-100 transition-all duration-100"
             >
@@ -328,16 +167,8 @@ const FocusTimeManager = () => {
             <span className="font-semibold text-purple-900">Avg Session</span>
           </div>
           <div className="text-2xl font-bold text-purple-700">
-            {sessionHistory.length > 0 ? (
-              <span>
-                {Math.round(
-                  sessionHistory
-                    .slice(0, 5)
-                    .reduce((acc, s) => acc + s.actualDuration, 0) /
-                    Math.min(5, sessionHistory.length)
-                )}{" "}
-                min
-              </span>
+            {averageSessionDuration ? (
+              <span>{averageSessionDuration} min</span>
             ) : (
               <span className="opacity-60 italic">N/A</span>
             )}
@@ -367,7 +198,7 @@ const FocusTimeManager = () => {
             <p className="text-blue-100 mb-4">{currentSession.task}</p>
             <div className="flex gap-3">
               <button
-                onClick={completeSessionEarly}
+                onClick={handleCompleteEarly}
                 className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition-colors"
               >
                 <CheckCircle className="w-4 h-4" />
@@ -385,7 +216,7 @@ const FocusTimeManager = () => {
                 {isRunning ? "Pause" : "Resume"}
               </button>
               <button
-                onClick={stopSession}
+                onClick={handleStopSession}
                 className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 transition-colors"
               >
                 <X className="w-4 h-4" />
@@ -420,12 +251,12 @@ const FocusTimeManager = () => {
             type="text"
             value={newTask}
             onChange={(e) => setNewTask(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addTask()}
+            onKeyDown={(e) => e.key === "Enter" && handleAddTask()}
             placeholder="What needs your focused attention?"
             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
-            onClick={addTask}
+            onClick={handleAddTask}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
@@ -531,14 +362,14 @@ const FocusTimeManager = () => {
             <h3 className="font-semibold text-gray-900">Recent Sessions</h3>
             <div className="flex gap-2">
               <button
-                onClick={() => setSessionHistory([])}
+                onClick={clearHistory}
                 className="flex items-center gap-1 bg-amber-500 text-white px-3 py-1 rounded-lg text-sm font-semibold hover:bg-amber-600 transition-colors"
               >
                 <X className="w-4 h-4" />
                 Clear
               </button>
               <button
-                onClick={() => exportHistoryAsCSV()}
+                onClick={exportHistoryAsCSV}
                 className="flex items-center gap-1 bg-cyan-600 text-white px-3 py-1 rounded-lg text-sm font-semibold hover:bg-cyan-700 transition-colors"
               >
                 <Download className="w-4 h-4" />
