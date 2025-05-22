@@ -309,7 +309,7 @@ const FocusTimeManager = () => {
             type="text"
             value={newTask}
             onChange={(e) => setNewTask(e.target.value)}
-            onKeyPress={(e) => e.key === "Enter" && addTask()}
+            onKeyDown={(e) => e.key === "Enter" && addTask()}
             placeholder="What needs your focused attention?"
             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />

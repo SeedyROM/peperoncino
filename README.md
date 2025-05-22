@@ -1,12 +1,11 @@
-# React + Vite
+# 🌶️ Peperoncino 
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is a enhanced version of the [pomadoro technique](https://en.wikipedia.org/wiki/Pomodoro_Technique), it allows you queue up a set of tasks each with a time limit, and then work through them in order of priority.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- **Task Queue**: Add tasks to a queue with a time limit for each task.
+- **Task Priority**: Set the priority of each task.
+- **Task History**: Keep track of completed tasks and their time spent.
+- **Task Statistics**: View statistics of completed tasks.
+- **Task Notifications**: Get notified when a task is completed or time is up.
