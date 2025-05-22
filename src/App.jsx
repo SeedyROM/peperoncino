@@ -261,7 +261,7 @@ const FocusTimeManager = () => {
 
       {/* Stats Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 group">
           <div className="flex items-center mb-1 justify-between">
             <div className="flex gap-2 items-center">
               <Target className="w-5 h-5 text-blue-600" />
@@ -271,12 +271,10 @@ const FocusTimeManager = () => {
             </div>
             <button
               onClick={() => clearSessionsToday()}
-              className="text-sm text-blue-600 hover:text-blue-800 cursor-pointer"
+              title="Clear today's session count"
+              className="text-sm text-blue-600 hover:text-blue-800 hover:scale-110 cursor-pointer opacity-0 group-hover:opacity-100 transition-all duration-100"
             >
-              <Trash2Icon
-                className="w-5 h-5"
-                alt="Clear today's session count cleared"
-              />
+              <Trash2Icon className="w-5 h-5" />
             </button>
           </div>
           <div className="text-2xl font-bold text-blue-700">
