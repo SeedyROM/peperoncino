@@ -9,6 +9,7 @@ import {
   Play,
   Pause,
   Trash2Icon,
+  Download,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -86,10 +87,20 @@ const FocusTimeManager = () => {
     return () => clearInterval(interval);
   }, [isRunning, timeLeft, currentSession]);
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
+  const formatTime = (seconds, alwaysShowSeconds = false) => {
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
+
+    if (hours > 0) {
+      if (alwaysShowSeconds) {
+        return `${hours}h ${mins}m ${secs}s`;
+      } else {
+        return `${hours}h ${mins}m`;
+      }
+    } else {
+      return `${mins}m ${secs}s`;
+    }
   };
 
   const startSession = (task) => {
@@ -173,17 +184,46 @@ const FocusTimeManager = () => {
   };
 
   const clearSessionsToday = () => {
-    setFocusSessions(
-      focusSessions.map((session) =>
-        session.completed ? { ...session, completed: false } : session
-      )
-    );
     setCompletedToday(0);
 
-    localStorage.setItem("completedToday", "0");
-    localStorage.setItem("completedDate", new Date().toDateString());
+    toast("Today's sessions cleared!", { icon: "💃" });
+  };
 
-    toast("Today's sessions cleared!", { icon: "🗑️" });
+  const exportHistoryAsCSV = () => {
+    if (sessionHistory.length === 0) {
+      toast("No session history to export!", { icon: "🚫" });
+      return;
+    }
+
+    const csvHeader =
+      "Task,Planned Duration (min),Actual Duration (min),Date,Time\n";
+
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      csvHeader +
+      sessionHistory
+        .map((session) => {
+          return `${session.task},${session.plannedDuration},${
+            session.actualDuration
+          },${new Date(session.completedAt).toLocaleDateString()},${new Date(
+            session.completedAt
+          ).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}`;
+        })
+        .join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute(
+      "download",
+      `session_history-${new Date().toISOString()}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast("Session history exported as CSV!", { icon: "📥" });
   };
 
   const setPriority = (id, priority) => {
@@ -235,7 +275,7 @@ const FocusTimeManager = () => {
             >
               <Trash2Icon
                 className="w-5 h-5"
-                alt="Clear today's session count"
+                alt="Clear today's session count cleared"
               />
             </button>
           </div>
@@ -279,42 +319,53 @@ const FocusTimeManager = () => {
 
       {/* Active Session */}
       {currentSession && (
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold">Current Focus Session</h2>
-            <div className="text-3xl font-mono font-bold">
-              {formatTime(timeLeft)}
+        <>
+          {isRunning ? (
+            <title>{`(${formatTime(timeLeft)}) - ${
+              currentSession.task
+            }`}</title>
+          ) : (
+            <title>{`(${formatTime(timeLeft)} Paused) - ${
+              currentSession.task
+            }`}</title>
+          )}
+          <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">Current Focus Session</h2>
+              <div className="text-3xl font-mono font-bold">
+                {formatTime(timeLeft, true)}
+              </div>
+            </div>
+            <p className="text-blue-100 mb-4">{currentSession.task}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={completeSessionEarly}
+                className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition-colors"
+              >
+                <CheckCircle className="w-4 h-4" />
+                Complete
+              </button>
+              <button
+                onClick={pauseResume}
+                className="flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
+              >
+                {isRunning ? (
+                  <Pause className="w-4 h-4" />
+                ) : (
+                  <Play className="w-4 h-4" />
+                )}
+                {isRunning ? "Pause" : "Resume"}
+              </button>
+              <button
+                onClick={stopSession}
+                className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+                Stop
+              </button>
             </div>
           </div>
-          <p className="text-blue-100 mb-4">{currentSession.task}</p>
-          <div className="flex gap-3">
-            <button
-              onClick={completeSessionEarly}
-              className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition-colors"
-            >
-              <CheckCircle className="w-4 h-4" />
-              Complete
-            </button>
-            <button
-              onClick={pauseResume}
-              className="flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
-            >
-              {isRunning ? (
-                <Pause className="w-4 h-4" />
-              ) : (
-                <Play className="w-4 h-4" />
-              )}
-              {isRunning ? "Pause" : "Resume"}
-            </button>
-            <button
-              onClick={stopSession}
-              className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 transition-colors"
-            >
-              <X className="w-4 h-4" />
-              Stop
-            </button>
-          </div>
-        </div>
+        </>
       )}
 
       {/* Add New Task */}
@@ -396,6 +447,12 @@ const FocusTimeManager = () => {
                     {session.task}
                   </span>
 
+                  {!session.completed && (
+                    <span className="text-sm text-gray-500 italic">
+                      {sessionLength} min (est)
+                    </span>
+                  )}
+
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full border ${getPriorityColor(
                       session.priority
@@ -444,13 +501,22 @@ const FocusTimeManager = () => {
         <div className="mt-8 bg-white border border-gray-200 rounded-lg p-4">
           <div className="flex justify-between items-center  mb-4">
             <h3 className="font-semibold text-gray-900">Recent Sessions</h3>
-            <button
-              onClick={() => setSessionHistory([])}
-              className="flex items-center gap-1 bg-orange-600 text-white px-3 py-1 rounded-lg text-sm font-semibold hover:bg-orange-700 transition-colors"
-            >
-              <X className="w-4 h-4" />
-              Clear History
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSessionHistory([])}
+                className="flex items-center gap-1 bg-amber-500 text-white px-3 py-1 rounded-lg text-sm font-semibold hover:bg-amber-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+                Clear
+              </button>
+              <button
+                onClick={() => exportHistoryAsCSV()}
+                className="flex items-center gap-1 bg-cyan-600 text-white px-3 py-1 rounded-lg text-sm font-semibold hover:bg-cyan-700 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Export
+              </button>
+            </div>
           </div>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {sessionHistory.slice(0, 10).map((session) => (
