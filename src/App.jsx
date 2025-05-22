@@ -8,6 +8,7 @@ import {
   X,
   Play,
   Pause,
+  Trash2Icon,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -171,6 +172,20 @@ const FocusTimeManager = () => {
     setFocusSessions(focusSessions.filter((session) => session.id !== id));
   };
 
+  const clearSessionsToday = () => {
+    setFocusSessions(
+      focusSessions.map((session) =>
+        session.completed ? { ...session, completed: false } : session
+      )
+    );
+    setCompletedToday(0);
+
+    localStorage.setItem("completedToday", "0");
+    localStorage.setItem("completedDate", new Date().toDateString());
+
+    toast("Today's sessions cleared!", { icon: "🗑️" });
+  };
+
   const setPriority = (id, priority) => {
     setFocusSessions(
       focusSessions.map((session) =>
@@ -207,9 +222,22 @@ const FocusTimeManager = () => {
       {/* Stats Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Target className="w-5 h-5 text-blue-600" />
-            <span className="font-semibold text-blue-900">Sessions Today</span>
+          <div className="flex items-center mb-1 justify-between">
+            <div className="flex gap-2 items-center">
+              <Target className="w-5 h-5 text-blue-600" />
+              <span className="font-semibold text-blue-900">
+                Sessions Today
+              </span>
+            </div>
+            <button
+              onClick={() => clearSessionsToday()}
+              className="text-sm text-blue-600 hover:text-blue-800 cursor-pointer"
+            >
+              <Trash2Icon
+                className="w-5 h-5"
+                alt="Clear today's session count"
+              />
+            </button>
           </div>
           <div className="text-2xl font-bold text-blue-700">
             {completedToday}
@@ -232,15 +260,19 @@ const FocusTimeManager = () => {
             <span className="font-semibold text-purple-900">Avg Session</span>
           </div>
           <div className="text-2xl font-bold text-purple-700">
-            {sessionHistory.length > 0
-              ? Math.round(
+            {sessionHistory.length > 0 ? (
+              <span>
+                {Math.round(
                   sessionHistory
                     .slice(0, 5)
                     .reduce((acc, s) => acc + s.actualDuration, 0) /
                     Math.min(5, sessionHistory.length)
-                )
-              : sessionLength}{" "}
-            min
+                )}{" "}
+                min
+              </span>
+            ) : (
+              <span className="opacity-60 italic">N/A</span>
+            )}
           </div>
         </div>
       </div>
