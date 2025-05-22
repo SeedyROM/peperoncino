@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Clock,
   Brain,
@@ -13,79 +13,109 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
+// Custom hook to manage localStorage state
+const useLocalStorage = (key, defaultValue) => {
+  const [value, setValue] = useState(() => {
+    try {
+      const saved = localStorage.getItem(key);
+      return saved ? JSON.parse(saved) : defaultValue;
+    } catch {
+      return defaultValue;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+      console.warn(`Failed to save ${key} to localStorage:`, error);
+    }
+  }, [key, value]);
+
+  return [value, setValue];
+};
+
+// Custom hook for today's completed sessions with date checking
+const useTodayCounter = () => {
+  const [completedToday, setCompletedToday] = useLocalStorage(
+    "completedToday",
+    0
+  );
+  const [lastDate, setLastDate] = useLocalStorage("completedDate", "");
+
+  // Function to update completed sessions for today
+  const updateCompletedToday = useCallback(
+    (updater) => {
+      const today = new Date().toDateString();
+
+      // Reset counter if it's a new day
+      if (lastDate !== today) {
+        setLastDate(today);
+        const newValue = typeof updater === "function" ? updater(0) : updater;
+        setCompletedToday(newValue);
+      } else {
+        setCompletedToday(updater);
+      }
+    },
+    [lastDate, setLastDate, setCompletedToday]
+  );
+
+  // Check if we need to reset on component mount
+  useEffect(() => {
+    const today = new Date().toDateString();
+    if (lastDate && lastDate !== today) {
+      setCompletedToday(0);
+      setLastDate(today);
+    }
+  }, [lastDate, setCompletedToday, setLastDate]);
+
+  return [completedToday, updateCompletedToday];
+};
+
 const FocusTimeManager = () => {
-  // Load from localStorage or use defaults
-  const [focusSessions, setFocusSessions] = useState(() => {
-    const saved = localStorage.getItem("focusSessions");
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [currentSession, setCurrentSession] = useState(() => {
-    const saved = localStorage.getItem("currentSession");
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [timeLeft, setTimeLeft] = useState(() => {
-    const saved = localStorage.getItem("timeLeft");
-    return saved ? parseInt(saved) : 0;
-  });
+  const [focusSessions, setFocusSessions] = useLocalStorage(
+    "focusSessions",
+    []
+  );
+  const [currentSession, setCurrentSession] = useLocalStorage(
+    "currentSession",
+    null
+  );
+  const [timeLeft, setTimeLeft] = useLocalStorage("timeLeft", 0);
+  const [sessionLength, setSessionLength] = useLocalStorage(
+    "sessionLength",
+    90
+  );
+  const [sessionHistory, setSessionHistory] = useLocalStorage(
+    "sessionHistory",
+    []
+  );
+  const [completedToday, setCompletedToday] = useTodayCounter();
+
   const [isRunning, setIsRunning] = useState(false);
   const [newTask, setNewTask] = useState("");
-  const [sessionLength, setSessionLength] = useState(() => {
-    const saved = localStorage.getItem("sessionLength");
-    return saved ? parseInt(saved) : 90;
-  });
-  const [completedToday, setCompletedToday] = useState(() => {
-    const saved = localStorage.getItem("completedToday");
-    const savedDate = localStorage.getItem("completedDate");
-    const today = new Date().toDateString();
-    return savedDate === today && saved ? parseInt(saved) : 0;
-  });
-  const [sessionHistory, setSessionHistory] = useState(() => {
-    const saved = localStorage.getItem("sessionHistory");
-    return saved ? JSON.parse(saved) : [];
-  });
 
-  // Save to localStorage whenever state changes
-  useEffect(() => {
-    localStorage.setItem("focusSessions", JSON.stringify(focusSessions));
-  }, [focusSessions]);
-
-  useEffect(() => {
-    localStorage.setItem("currentSession", JSON.stringify(currentSession));
-  }, [currentSession]);
-
-  useEffect(() => {
-    localStorage.setItem("timeLeft", timeLeft.toString());
-  }, [timeLeft]);
-
-  useEffect(() => {
-    localStorage.setItem("sessionLength", sessionLength.toString());
-  }, [sessionLength]);
-
-  useEffect(() => {
-    const today = new Date().toDateString();
-    localStorage.setItem("completedToday", completedToday.toString());
-    localStorage.setItem("completedDate", today);
-  }, [completedToday]);
-
-  useEffect(() => {
-    localStorage.setItem("sessionHistory", JSON.stringify(sessionHistory));
-  }, [sessionHistory]);
   useEffect(() => {
     let interval = null;
     if (isRunning && timeLeft > 0) {
       interval = setInterval(() => {
-        setTimeLeft(timeLeft - 1);
+        setTimeLeft((prev) => prev - 1);
       }, 1000);
     } else if (timeLeft === 0 && currentSession) {
       setIsRunning(false);
       setCompletedToday((prev) => prev + 1);
       setCurrentSession(null);
-      toast("Good Job!", {
-        icon: "🎉👏",
-      });
+      toast("Good Job!", { icon: "🎉👏" });
     }
     return () => clearInterval(interval);
-  }, [isRunning, timeLeft, currentSession]);
+  }, [
+    isRunning,
+    timeLeft,
+    currentSession,
+    setCompletedToday,
+    setCurrentSession,
+    setTimeLeft,
+  ]);
 
   const formatTime = (seconds, alwaysShowSeconds = false) => {
     const hours = Math.floor(seconds / 3600);
