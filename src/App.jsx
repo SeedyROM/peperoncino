@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-// Import custom hooks
 import {
   useLocalStorage,
   useTodayCounter,
@@ -23,7 +22,6 @@ import {
   useCurrentSession,
 } from "./hooks";
 
-// Import utils
 import { formatTime, getPriorityColor } from "./utils";
 
 const FocusTimeManager = () => {
@@ -34,7 +32,6 @@ const FocusTimeManager = () => {
   const [completedToday, setCompletedToday] = useTodayCounter();
   const [newTask, setNewTask] = useState("");
 
-  // Session history hook
   const {
     sessionHistory,
     addSessionRecord,
@@ -43,7 +40,6 @@ const FocusTimeManager = () => {
     getAverageSessionDuration,
   } = useSessionHistory();
 
-  // Focus sessions hook
   const {
     focusSessions,
     addTask,
@@ -53,14 +49,12 @@ const FocusTimeManager = () => {
     markTaskCompleted,
   } = useFocusSessions();
 
-  // Handle session completion
   const handleSessionComplete = (session, timeWorked, plannedDuration) => {
     markTaskCompleted(session.id);
     addSessionRecord(session.task, plannedDuration, timeWorked);
     setCompletedToday((prev) => prev + 1);
   };
 
-  // Current session hook
   const {
     currentSession,
     startSession: startCurrentSession,
@@ -68,7 +62,6 @@ const FocusTimeManager = () => {
     stopSession,
   } = useCurrentSession(handleSessionComplete);
 
-  // Timer hook
   const { timeLeft, isRunning, startTimer, pauseResume, stopTimer } = useTimer(
     () => {
       if (currentSession) {
@@ -82,33 +75,28 @@ const FocusTimeManager = () => {
     }
   );
 
-  // Combined start session function
   const startSession = (task) => {
     startCurrentSession(task);
     startTimer(sessionLength * 60);
   };
 
-  // Combined stop session function
   const handleStopSession = () => {
     stopTimer();
     stopSession();
   };
 
-  // Handle early completion
   const handleCompleteEarly = () => {
     const timeWorked = sessionLength * 60 - timeLeft;
     completeSessionEarly(timeWorked, sessionLength);
     stopTimer();
   };
 
-  // Add task handler
   const handleAddTask = () => {
     if (addTask(newTask)) {
       setNewTask("");
     }
   };
 
-  // Clear today's sessions
   const clearSessionsToday = () => {
     setCompletedToday(0);
     toast("Today's sessions cleared!", { icon: "💃" });
@@ -274,84 +262,93 @@ const FocusTimeManager = () => {
             <p>No focus tasks yet. Add some deep work items above!</p>
           </div>
         ) : (
-          focusSessions.map((session) => (
-            <div
-              key={session.id}
-              className={`border rounded-lg p-4 transition-all ${
-                session.completed
-                  ? "bg-gray-50 opacity-60"
-                  : "bg-white hover:shadow-md"
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 flex-1 mr-2">
-                  <button
-                    onClick={() => toggleComplete(session.id)}
-                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      session.completed
-                        ? "bg-green-500 border-green-500 text-white"
-                        : "border-gray-300 hover:border-green-500"
-                    }`}
-                  >
-                    {session.completed && <CheckCircle className="w-3 h-3" />}
-                  </button>
+          focusSessions
+            .sort((a, b) => {
+              if (a.completed !== b.completed) {
+                return a.completed ? 1 : -1;
+              }
 
-                  <span
-                    className={`flex-1 ${
-                      session.completed
-                        ? "line-through text-gray-500"
-                        : "text-gray-900"
-                    }`}
-                  >
-                    {session.task}
-                  </span>
-
-                  {!session.completed && (
-                    <span className="text-sm text-gray-500 italic">
-                      {sessionLength} min (est)
-                    </span>
-                  )}
-
-                  <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full border ${getPriorityColor(
-                      session.priority
-                    )}`}
-                  >
-                    {session.priority}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-4 ml-2">
-                  <select
-                    value={session.priority}
-                    onChange={(e) => setPriority(session.id, e.target.value)}
-                    className="text-xs border border-gray-300 rounded px-2 py-1"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-
-                  {!session.completed && !currentSession && (
+              const priorityOrder = { high: 0, medium: 1, low: 2 };
+              return priorityOrder[a.priority] - priorityOrder[b.priority];
+            })
+            .map((session) => (
+              <div
+                key={session.id}
+                className={`border rounded-lg p-4 transition-all ${
+                  session.completed
+                    ? "bg-gray-50 opacity-60"
+                    : "bg-white hover:shadow-md"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 flex-1 mr-2">
                     <button
-                      onClick={() => startSession(session)}
-                      className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+                      onClick={() => toggleComplete(session.id)}
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        session.completed
+                          ? "bg-green-500 border-green-500 text-white"
+                          : "border-gray-300 hover:border-green-500"
+                      }`}
                     >
-                      <Play className="w-3 h-3" />
-                      Start
+                      {session.completed && <CheckCircle className="w-3 h-3" />}
                     </button>
-                  )}
 
-                  <button
-                    onClick={() => removeTask(session.id)}
-                    className="text-red-500 hover:text-red-700 p-1"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                    <span
+                      className={`flex-1 ${
+                        session.completed
+                          ? "line-through text-gray-500"
+                          : "text-gray-900"
+                      }`}
+                    >
+                      {session.task}
+                    </span>
+
+                    {!session.completed && (
+                      <span className="text-sm text-gray-500 italic">
+                        {sessionLength} min (est)
+                      </span>
+                    )}
+
+                    <span
+                      className={`px-2 py-1 text-xs font-medium rounded-full border ${getPriorityColor(
+                        session.priority
+                      )}`}
+                    >
+                      {session.priority}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-4 ml-2">
+                    <select
+                      value={session.priority}
+                      onChange={(e) => setPriority(session.id, e.target.value)}
+                      className="text-xs border border-gray-300 rounded px-2 py-1"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+
+                    {!session.completed && !currentSession && (
+                      <button
+                        onClick={() => startSession(session)}
+                        className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+                      >
+                        <Play className="w-3 h-3" />
+                        Start
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => removeTask(session.id)}
+                      className="text-red-500 hover:text-red-700 p-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            ))
         )}
       </div>
 
