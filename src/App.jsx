@@ -245,7 +245,7 @@ const FocusTimeManager = () => {
           />
           <button
             onClick={handleAddTask}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             Add
@@ -332,7 +332,7 @@ const FocusTimeManager = () => {
                     {!session.completed && !currentSession && (
                       <button
                         onClick={() => startSession(session)}
-                        className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+                        className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors cursor-pointer"
                       >
                         <Play className="w-3 h-3" />
                         Start
@@ -341,7 +341,7 @@ const FocusTimeManager = () => {
 
                     <button
                       onClick={() => removeTask(session.id)}
-                      className="text-red-500 hover:text-red-700 p-1"
+                      className="text-red-500 hover:text-red-700 p-1 cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </button>
