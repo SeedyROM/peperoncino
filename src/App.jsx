@@ -306,7 +306,6 @@ const FocusTimeManager = () => {
                         if (currentSession?.id === session.id) {
                           handleCompleteEarly();
                         } else {
-                          handleStopSession();
                           toggleComplete(session.id);
                         }
                       }}
