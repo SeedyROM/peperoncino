@@ -307,6 +307,15 @@ const FocusTimeManager = () => {
                           handleCompleteEarly();
                         } else {
                           toggleComplete(session.id);
+                          if (session.completed) {
+                            toast("Task marked as incomplete", {
+                              icon: "❌",
+                            });
+                          } else {
+                            toast("Task marked as complete", {
+                              icon: "✅",
+                            });
+                          }
                         }
                       }}
                       className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
