@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 
 import useLocalStorage from "./useLocalStorage";
+import toast from "react-hot-toast";
 
 export default function useFocusSessions() {
   const [focusSessions, setFocusSessions] = useLocalStorage(
@@ -9,13 +10,15 @@ export default function useFocusSessions() {
   );
 
   const addTask = useCallback(
-    (taskText, priority = "medium") => {
+    (taskText, length, priority = "medium") => {
       if (taskText.trim()) {
+        console.log("length", length);
         const newTask = {
           id: Date.now(),
           task: taskText.trim(),
           completed: false,
           priority,
+          length,
         };
         setFocusSessions((prev) => [...prev, newTask]);
         return newTask;
@@ -40,6 +43,7 @@ export default function useFocusSessions() {
   const removeTask = useCallback(
     (id) => {
       setFocusSessions((prev) => prev.filter((session) => session.id !== id));
+      toast("Task removed", { icon: "❌" });
     },
     [setFocusSessions]
   );

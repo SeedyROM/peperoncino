@@ -78,22 +78,26 @@ const FocusTimeManager = () => {
   const startSession = (task) => {
     startCurrentSession(task);
     startTimer(sessionLength * 60);
+    toast("Session started!", { icon: "⏳" });
   };
 
   const handleStopSession = () => {
     stopTimer();
     stopSession();
+    toast("Session stopped!", { icon: "🛑" });
   };
 
   const handleCompleteEarly = () => {
     const timeWorked = sessionLength * 60 - timeLeft;
     completeSessionEarly(timeWorked, sessionLength);
     stopTimer();
+    toast("Session completed early!", { icon: "🫡" });
   };
 
   const handleAddTask = () => {
-    if (addTask(newTask)) {
+    if (addTask(newTask.trim(), sessionLength)) {
       setNewTask("");
+      toast("Task added!", { icon: "✅" });
     }
   };
 
@@ -186,13 +190,6 @@ const FocusTimeManager = () => {
             <p className="text-blue-100 mb-4">{currentSession.task}</p>
             <div className="flex gap-3">
               <button
-                onClick={handleCompleteEarly}
-                className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition-colors"
-              >
-                <CheckCircle className="w-4 h-4" />
-                Complete
-              </button>
-              <button
                 onClick={pauseResume}
                 className="flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
               >
@@ -203,6 +200,14 @@ const FocusTimeManager = () => {
                 )}
                 {isRunning ? "Pause" : "Resume"}
               </button>
+              <button
+                onClick={handleCompleteEarly}
+                className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition-colors"
+              >
+                <CheckCircle className="w-4 h-4" />
+                Complete
+              </button>
+
               <button
                 onClick={handleStopSession}
                 className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 transition-colors"
@@ -216,42 +221,45 @@ const FocusTimeManager = () => {
       )}
 
       {/* Add New Task */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-gray-900">Add Focus Task</h3>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Session length:</span>
-            <select
-              value={sessionLength}
-              onChange={(e) => setSessionLength(parseInt(e.target.value))}
-              className="text-sm border border-gray-300 rounded px-2 py-1"
-              disabled={currentSession}
+      {!currentSession && (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-900">Add Focus Task</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Session length:</span>
+              <select
+                value={sessionLength}
+                onChange={(e) => setSessionLength(parseInt(e.target.value))}
+                className="text-sm border border-gray-300 rounded px-2 py-1"
+                disabled={currentSession}
+              >
+                <option value={25}>25 min</option>
+                <option value={45}>45 min</option>
+                <option value={90}>90 min</option>
+                <option value={120}>2 hours</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newTask}
+              onChange={(e) => setNewTask(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddTask()}
+              placeholder="What needs your focused attention?"
+              className="flex-1 px-3 py-2 border bg-white border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={handleAddTask}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-400 disabled:bg-gray-400"
+              disabled={!newTask.trim()}
             >
-              <option value={25}>25 min</option>
-              <option value={45}>45 min</option>
-              <option value={90}>90 min</option>
-              <option value={120}>2 hours</option>
-            </select>
+              <Plus className="w-4 h-4" />
+              Add
+            </button>
           </div>
         </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newTask}
-            onChange={(e) => setNewTask(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAddTask()}
-            placeholder="What needs your focused attention?"
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={handleAddTask}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            Add
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* Task List */}
       <div className="space-y-3">
@@ -264,6 +272,10 @@ const FocusTimeManager = () => {
         ) : (
           focusSessions
             .sort((a, b) => {
+              // If it's the current session, move it to the top
+              if (currentSession?.id === a.id) return -3218392;
+
+              // Sort by completed status
               if (a.completed !== b.completed) {
                 return a.completed ? 1 : -1;
               }
@@ -278,7 +290,13 @@ const FocusTimeManager = () => {
                   session.completed
                     ? "bg-gray-50 opacity-60"
                     : "bg-white hover:shadow-md"
-                }`}
+                }
+                ${
+                  currentSession?.id === session.id
+                    ? "border-blue-500 border-2 !bg-blue-100"
+                    : ""
+                }
+                `}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1 mr-2">
@@ -305,7 +323,7 @@ const FocusTimeManager = () => {
 
                     {!session.completed && (
                       <span className="text-sm text-gray-500 italic">
-                        {sessionLength} min (est)
+                        {session.length} min (est)
                       </span>
                     )}
 
@@ -318,33 +336,40 @@ const FocusTimeManager = () => {
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-4 ml-2">
-                    <select
-                      value={session.priority}
-                      onChange={(e) => setPriority(session.id, e.target.value)}
-                      className="text-xs border border-gray-300 rounded px-2 py-1"
-                    >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                    </select>
-
-                    {!session.completed && !currentSession && (
+                  <div className="flex items-center gap-2">
+                    {!session.completed &&
+                      currentSession?.id !== session.id && (
+                        <>
+                          <select
+                            value={session.priority}
+                            onChange={(e) =>
+                              setPriority(session.id, e.target.value)
+                            }
+                            className="text-xs border border-gray-300 rounded px-2 py-1"
+                          >
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                          </select>
+                          {!isRunning && (
+                            <button
+                              onClick={() => startSession(session)}
+                              className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors cursor-pointer"
+                            >
+                              <Play className="w-3 h-3" />
+                              Start
+                            </button>
+                          )}
+                        </>
+                      )}
+                    {currentSession?.id !== session.id && (
                       <button
-                        onClick={() => startSession(session)}
-                        className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors cursor-pointer"
+                        onClick={() => removeTask(session.id)}
+                        className="text-red-500 hover:text-red-700 pl-1 cursor-pointer"
                       >
-                        <Play className="w-3 h-3" />
-                        Start
+                        <X className="w-4 h-4" />
                       </button>
                     )}
-
-                    <button
-                      onClick={() => removeTask(session.id)}
-                      className="text-red-500 hover:text-red-700 p-1 cursor-pointer"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
                   </div>
                 </div>
               </div>
