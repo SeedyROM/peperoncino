@@ -273,13 +273,14 @@ const FocusTimeManager = () => {
           focusSessions
             .sort((a, b) => {
               // If it's the current session, move it to the top
-              if (currentSession?.id === a.id) return -3218392;
+              if (currentSession?.id === a.id) return -1;
 
               // Sort by completed status
               if (a.completed !== b.completed) {
                 return a.completed ? 1 : -1;
               }
 
+              // Sort by priority
               const priorityOrder = { high: 0, medium: 1, low: 2 };
               return priorityOrder[a.priority] - priorityOrder[b.priority];
             })
@@ -301,12 +302,24 @@ const FocusTimeManager = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1 mr-2">
                     <button
-                      onClick={() => toggleComplete(session.id)}
+                      onClick={() => {
+                        if (currentSession?.id === session.id) {
+                          handleCompleteEarly();
+                        } else {
+                          handleStopSession();
+                          toggleComplete(session.id);
+                        }
+                      }}
                       className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                         session.completed
                           ? "bg-green-500 border-green-500 text-white"
                           : "border-gray-300 hover:border-green-500"
                       }`}
+                      title={
+                        session.completed
+                          ? "Mark as incomplete"
+                          : "Mark as complete"
+                      }
                     >
                       {session.completed && <CheckCircle className="w-3 h-3" />}
                     </button>
